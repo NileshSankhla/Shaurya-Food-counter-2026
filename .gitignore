@@ -27,3 +27,6 @@ bun-error.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Frontend Build
+frontend/dist/
