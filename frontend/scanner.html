@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>CampusEats - QR Scanner</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&amp;family=Be+Vietnam+Pro:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "primary": "#964900",
+                      "background": "#f9f9f9",
+                      "surface-container": "#eeeeee",
+                      "tertiary-container": "#d081ff",
+                      "surface-container-low": "#f3f3f4",
+                      "on-secondary-fixed-variant": "#8e0049",
+                      "on-secondary-container": "#fffbff",
+                      "tertiary": "#8639b4",
+                      "surface-variant": "#e2e2e2",
+                      "tertiary-fixed-dim": "#e5b4ff",
+                      "on-tertiary-fixed-variant": "#6c1a9a",
+                      "inverse-surface": "#2f3131",
+                      "on-primary-container": "#5d2b00",
+                      "on-surface": "#1a1c1c",
+                      "on-tertiary-fixed": "#30004b",
+                      "on-primary-fixed": "#311300",
+                      "on-primary-fixed-variant": "#723600",
+                      "primary-fixed": "#ffdcc6",
+                      "on-error": "#ffffff",
+                      "surface-bright": "#f9f9f9",
+                      "outline-variant": "#ddc1b1",
+                      "inverse-on-surface": "#f0f1f1",
+                      "surface-dim": "#dadada",
+                      "surface": "#f9f9f9",
+                      "secondary-fixed": "#ffd9e2",
+                      "on-surface-variant": "#564337",
+                      "secondary": "#b5005f",
+                      "error": "#ba1a1a",
+                      "secondary-fixed-dim": "#ffb1c7",
+                      "primary-fixed-dim": "#ffb786",
+                      "inverse-primary": "#ffb786",
+                      "on-background": "#1a1c1c",
+                      "on-primary": "#ffffff",
+                      "outline": "#897264",
+                      "surface-tint": "#964900",
+                      "primary-container": "#f58529",
+                      "on-tertiary": "#ffffff",
+                      "on-secondary-fixed": "#3e001d",
+                      "surface-container-lowest": "#ffffff",
+                      "on-error-container": "#93000a",
+                      "tertiary-fixed": "#f5d9ff",
+                      "on-tertiary-container": "#5c0089",
+                      "on-secondary": "#ffffff",
+                      "secondary-container": "#d92778",
+                      "error-container": "#ffdad6",
+                      "surface-container-highest": "#e2e2e2",
+                      "surface-container-high": "#e8e8e8"
+              },
+              "borderRadius": {
+                      "DEFAULT": "1rem",
+                      "lg": "2rem",
+                      "xl": "3rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "md": "16px",
+                      "xs": "8px",
+                      "gutter-mobile": "12px",
+                      "base": "4px",
+                      "lg": "24px",
+                      "sm": "12px",
+                      "margin-mobile": "20px",
+                      "xl": "32px",
+                      "safe": "env(safe-area-inset-bottom)"
+              },
+              "fontFamily": {
+                      "display": ["Syne", "sans-serif"],
+                      "body-lg": ["Be Vietnam Pro", "sans-serif"],
+                      "headline-lg": ["Syne", "sans-serif"],
+                      "headline-lg-mobile": ["Syne", "sans-serif"],
+                      "label-md": ["Be Vietnam Pro", "sans-serif"],
+                      "headline-md": ["Syne", "sans-serif"],
+                      "body-md": ["Be Vietnam Pro", "sans-serif"]
+              },
+              "fontSize": {
+                      "display": ["42px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                      "body-lg": ["18px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                      "headline-lg-mobile": ["28px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                      "label-md": ["14px", {"lineHeight": "1.2", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                      "headline-md": ["24px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                      "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}]
+              }
+            },
+          }
+        }
+    </script>
+<style>
+        .glow-aura {
+            position: absolute;
+            width: 80%;
+            height: 80%;
+            background: radial-gradient(circle, rgba(245,133,41,0.2) 0%, rgba(208,129,255,0.1) 50%, rgba(255,255,255,0) 100%);
+            filter: blur(40px);
+            z-index: -1;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+        
+        .scan-line {
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #f58529, #d081ff, transparent);
+            position: absolute;
+            top: 0;
+            left: 0;
+            animation: scan 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            box-shadow: 0 0 10px rgba(245, 133, 41, 0.5);
+        }
+
+        @keyframes scan {
+            0% { top: 10%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 90%; opacity: 0; }
+        }
+
+        .camera-frame {
+            box-shadow: inset 0 0 0 2px rgba(221, 193, 177, 0.3);
+        }
+        
+        .corner-marker {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border: 3px solid #f58529;
+            border-radius: 8px;
+        }
+        .corner-tl { top: 20px; left: 20px; border-right: none; border-bottom: none; }
+        .corner-tr { top: 20px; right: 20px; border-left: none; border-bottom: none; }
+        .corner-bl { bottom: 20px; left: 20px; border-right: none; border-top: none; }
+        .corner-br { bottom: 20px; right: 20px; border-left: none; border-top: none; }
+        
+        /* Aggressive override for html5-qrcode injected elements */
+        #reader {
+            position: absolute !important;
+            inset: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            overflow: hidden !important;
+            margin: 0 auto;
+        }
+
+        #reader video {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+        }
+
+        #reader img {
+            display: none !important;
+        }
+
+        #reader canvas {
+            display: none !important;
+        }
+
+        #reader__dashboard {
+            display: none !important;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface h-full flex flex-col font-body-md overflow-hidden relative">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/30 flex justify-between items-center px-margin-mobile h-16 transition-opacity duration-200">
+<img src="logo.png" alt="Shaurya Logo" class="h-10 object-contain relative z-10"/>
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+    <h1 class="font-display text-headline-md-mobile font-extrabold text-primary">CampusEats</h1>
+</div>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-primary hover:opacity-80 transition-opacity relative z-10">
+<span class="material-symbols-outlined" style="font-size: 24px;">notifications</span>
+</button>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 w-full max-w-md mx-auto pt-24 pb-28 px-margin-mobile relative flex flex-col items-center justify-center z-10">
+<!-- Meal Selector -->
+<div class="w-full flex bg-surface-container-high rounded-xl p-1 mb-md">
+    <button onclick="setMeal('Breakfast')" id="btn-Breakfast" class="flex-1 py-2 text-sm font-label-md rounded-lg bg-primary text-on-primary shadow-sm transition-all">Breakfast</button>
+    <button onclick="setMeal('Lunch')" id="btn-Lunch" class="flex-1 py-2 text-sm font-label-md rounded-lg text-on-surface-variant hover:text-on-surface transition-all">Lunch</button>
+    <button onclick="setMeal('Dinner')" id="btn-Dinner" class="flex-1 py-2 text-sm font-label-md rounded-lg text-on-surface-variant hover:text-on-surface transition-all">Dinner</button>
+</div>
+<!-- Scanner Canvas -->
+<div class="relative w-full aspect-[3/4] bg-surface-container-lowest rounded-[3rem] overflow-hidden camera-frame flex items-center justify-center group">
+<!-- Glow Aura -->
+<div class="glow-aura"></div>
+<!-- Camera View -->
+<div id="reader"></div>
+<!-- Focus Area / Reticle -->
+<div class="relative w-64 h-64 z-10 bg-transparent rounded-2xl shadow-[0_0_0_9999px_rgba(255,255,255,0.7)] pointer-events-none">
+<!-- Scanning Line Animation -->
+<div class="scan-line"></div>
+<!-- Corner Markers -->
+<div class="corner-marker corner-tl"></div>
+<div class="corner-marker corner-tr"></div>
+<div class="corner-marker corner-bl"></div>
+<div class="corner-marker corner-br"></div>
+</div>
+</div>
+<!-- Instructional Text -->
+<div class="mt-xl text-center space-y-sm w-full relative z-10">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">Scan Student QR Code</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Position the QR code within the frame to verify meal access.</p>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 inset-x-0 mx-auto max-w-md z-50 rounded-t-[2rem] bg-surface/90 backdrop-blur-md border-t border-outline-variant/20 shadow-[0_-4px_20px_rgba(221,42,123,0.1)] flex justify-around items-center h-20 px-4 pb-safe">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high/50 w-16 h-14 rounded-2xl transition-colors" href="dashboard.html">
+<span class="material-symbols-outlined mb-1">home</span>
+<span class="font-label-md text-[11px]">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary font-bold bg-primary-container/20 rounded-xl w-20 h-16 scale-95 transition-transform duration-150 relative overflow-hidden group" href="scanner.html">
+<div class="absolute inset-0 bg-gradient-to-tr from-primary-container/30 to-tertiary-container/30 opacity-50"></div>
+<span class="material-symbols-outlined mb-1 relative z-10" style="font-variation-settings: 'FILL' 1;">qr_code_scanner</span>
+<span class="font-label-md text-[11px] relative z-10">Scanner</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high/50 w-16 h-14 rounded-2xl transition-colors" href="history.html">
+<span class="material-symbols-outlined mb-1">history</span>
+<span class="font-label-md text-[11px]">History</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high/50 w-16 h-14 rounded-2xl transition-colors" href="profile.html">
+<span class="material-symbols-outlined mb-1">person</span>
+<span class="font-label-md text-[11px]">Profile</span>
+</a>
+</nav>
+<!-- Success Modal Overlay (Hidden by default, shown for demonstration based on prompt) -->
+<!-- Add class 'hidden' to the main div below to hide in normal flow -->
+<div class="fixed inset-0 z-[100] hidden items-center justify-center p-margin-mobile bg-black/40 backdrop-blur-sm transition-opacity duration-300" id="success-modal">
+<div class="bg-surface-container-lowest w-full max-w-sm rounded-[2rem] p-xl flex flex-col items-center text-center relative overflow-hidden transform scale-100 transition-transform duration-300">
+<!-- Success Aura -->
+<div class="absolute inset-0 bg-gradient-to-b from-[#b5005f]/10 to-transparent pointer-events-none"></div>
+<!-- Icon -->
+<div class="w-20 h-20 bg-secondary-container text-on-secondary-container rounded-full flex items-center justify-center mb-lg shadow-[0_8px_32px_rgba(181,0,95,0.3)]">
+<span class="material-symbols-outlined text-[40px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<!-- Content -->
+<h3 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface mb-xs tracking-tight">FOOD ISSUED</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-lg">Student Verified</p>
+<div class="w-full bg-surface-container rounded-xl p-md mb-xl flex flex-col items-center">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-1">QR ID</span>
+<span id="scanned-id" class="font-headline-md text-headline-md text-on-surface font-extrabold tracking-widest">SHAURYA-82KD91</span>
+</div>
+<!-- Action -->
+<button onclick="scanNext()" class="w-full bg-gradient-to-r from-primary-container to-tertiary-container text-on-primary-container font-label-md text-label-md h-14 rounded-full shadow-[0_8px_24px_rgba(245,133,41,0.2)] hover:shadow-[0_8px_24px_rgba(245,133,41,0.4)] transition-shadow">
+                SCAN NEXT
+            </button>
+</div>
+</div>
+
+<script src="js/config.js"></script>
+<script>
+    const html5QrCode = new Html5Qrcode("reader");
+    const qrConfig = {
+        fps: 10,
+        aspectRatio: 0.75,
+        qrbox: {
+            width: 250,
+            height: 250
+        }
+    };
+    const successModal = document.getElementById('success-modal');
+    const modalHeader = successModal.querySelector('p.text-on-surface-variant');
+    const icon = successModal.querySelector('span.material-symbols-outlined');
+    const scannedIdElement = document.getElementById('scanned-id');
+    const titleElement = successModal.querySelector('h3');
+    
+    let isProcessing = false;
+    let currentMeal = 'Breakfast';
+
+    function setMeal(meal) {
+        currentMeal = meal;
+        ['Breakfast', 'Lunch', 'Dinner'].forEach(m => {
+            const btn = document.getElementById('btn-' + m);
+            if (m === meal) {
+                btn.className = "flex-1 py-2 text-sm font-label-md rounded-lg bg-primary text-on-primary shadow-sm transition-all";
+            } else {
+                btn.className = "flex-1 py-2 text-sm font-label-md rounded-lg text-on-surface-variant hover:text-on-surface transition-all";
+            }
+        });
+    }
+
+    // Fallback UI to stop scan manually
+    function stopScan() {
+        if(html5QrCode.isScanning) {
+            html5QrCode.stop().catch(err => console.error("Failed to stop scanner", err));
+        }
+    }
+
+    async function onScanSuccess(decodedText, decodedResult) {
+        if (isProcessing) return; // Prevent multiple scans
+        isProcessing = true;
+        
+        stopScan();
+
+        // Show Verifying UI
+        titleElement.innerText = 'VERIFYING...';
+        modalHeader.innerText = 'Please wait';
+        icon.innerText = 'hourglass_empty';
+        icon.className = 'material-symbols-outlined text-outline-variant text-[60px] animate-pulse';
+        scannedIdElement.innerText = decodedText;
+        successModal.classList.remove('hidden');
+        
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const response = await fetch(`${CONFIG.API_BASE_URL}/scan/verify`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ studentId: decodedText, mealType: currentMeal })
+            });
+
+            if (response.status === 401) {
+                localStorage.clear();
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const data = await response.json();
+            
+            // Adjust modal based on status
+            if (response.ok && data.status === 'success') {
+                titleElement.innerText = 'FOOD ISSUED';
+                modalHeader.innerText = 'Student Verified';
+                icon.innerText = 'check_circle';
+                icon.className = 'material-symbols-outlined text-primary-container text-[80px] mb-sm drop-shadow-md';
+            } else {
+                titleElement.innerText = 'SCAN FAILED';
+                modalHeader.innerText = data.reason || 'Verification Failed';
+                icon.innerText = 'error';
+                icon.className = 'material-symbols-outlined text-error text-[80px] mb-sm drop-shadow-md';
+            }
+            
+        } catch (err) {
+            console.error('API Error', err);
+            titleElement.innerText = 'NETWORK ERROR';
+            modalHeader.innerText = 'Server unreachable';
+            icon.innerText = 'wifi_off';
+            icon.className = 'material-symbols-outlined text-error text-[80px] mb-sm drop-shadow-md';
+        }
+    }
+
+    // Start scanning
+    html5QrCode.start({ facingMode: { exact: "environment" } }, qrConfig, onScanSuccess)
+        .catch(err => {
+            console.warn("Exact environment camera failed, falling back to default", err);
+            html5QrCode.start({ facingMode: "environment" }, qrConfig, onScanSuccess)
+                .catch(e => {
+                    console.error("Camera access denied or failed", e);
+                    alert('Please allow camera permissions and reload.');
+                });
+        });
+
+    function scanNext() {
+        successModal.classList.add('hidden');
+        isProcessing = false;
+        html5QrCode.start({ facingMode: { exact: "environment" } }, qrConfig, onScanSuccess)
+            .catch(() => html5QrCode.start({ facingMode: "environment" }, qrConfig, onScanSuccess));
+    }
+</script>
+</body></html>
