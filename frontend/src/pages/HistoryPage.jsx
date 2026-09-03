@@ -1,5 +1,17 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { getHistory } from '../api/client'
+
+const FILTERS = ['All Scans', 'Success', 'Failed']
+
+function formatDateTime(dateStr) {
+  if (!dateStr) return ''
+  try {
+    const d = new Date(dateStr)
+    return d.toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+  } catch {
+    return ''
+  }
+}
 
 export default function HistoryPage() {
   const [allData, setAllData] = useState([])
@@ -8,147 +20,143 @@ export default function HistoryPage() {
   const [activeFilter, setActiveFilter] = useState('All Scans')
   const [searchQuery, setSearchQuery] = useState('')
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
     try {
-      setIsLoading(true)
       const data = await getHistory()
-      setAllData(Array.isArray(data) ? data : data.history || [])
-      setError(null)
+      setAllData(Array.isArray(data) ? data : [])
     } catch (err) {
-      setError('Failed to load history')
+      setError('Could not load history. Check connection.')
       console.error(err)
     } finally {
       setIsLoading(false)
     }
-  }
-
-  useEffect(() => {
-    fetchHistory()
   }, [])
 
+  useEffect(() => { fetchHistory() }, [fetchHistory])
+
   const filteredData = useMemo(() => {
-    let filtered = allData
+    let d = allData
+    if (activeFilter === 'Success') d = d.filter(i => i.status === 'success')
+    else if (activeFilter === 'Failed') d = d.filter(i => i.status === 'failed')
 
-    if (activeFilter === 'Success') {
-      filtered = filtered.filter(item => item.status === 'success')
-    } else if (activeFilter === 'Failed') {
-      filtered = filtered.filter(item => item.status === 'failed')
-    }
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      filtered = filtered.filter(item =>
-        (item.studentId && item.studentId.toLowerCase().includes(q)) ||
-        (item.mealType && item.mealType.toLowerCase().includes(q)) ||
-        (item.reason && item.reason.toLowerCase().includes(q))
+    const q = searchQuery.trim().toLowerCase()
+    if (q) {
+      d = d.filter(i =>
+        i.studentId?.toLowerCase().includes(q) ||
+        i.mealType?.toLowerCase().includes(q) ||
+        i.reason?.toLowerCase().includes(q)
       )
     }
-
-    return filtered
+    return d
   }, [allData, activeFilter, searchQuery])
 
-  const formatTime = (dateStr) => {
-    if (!dateStr) return ''
-    try {
-      return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    } catch {
-      return ''
-    }
-  }
-
   return (
-    <div className="flex flex-col h-full bg-surface">
-      <div className="sticky top-0 z-10 bg-surface/95 backdrop-blur-md pb-4 pt-4 px-4 border-b border-surface-variant">
-        <div className="flex justify-between items-center mb-4">
+    <div className="flex flex-col h-full">
+
+      {/* ── Sticky header ── */}
+      <div className="flex-shrink-0 bg-surface/95 backdrop-blur-md border-b border-surface-variant px-4 pt-4 pb-3 flex flex-col gap-3">
+        <div className="flex justify-between items-center">
           <h1 className="font-display text-2xl font-bold text-on-surface">Scan History</h1>
           <button
             onClick={fetchHistory}
-            className="p-2 rounded-full bg-surface-container-low text-on-surface-variant hover:text-primary transition-colors"
+            disabled={isLoading}
+            aria-label="Refresh history"
+            className="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors disabled:opacity-50"
           >
-            <span className={`material-symbols-outlined ${isLoading ? 'animate-spin' : ''}`}>refresh</span>
+            <span className={`material-symbols-outlined text-xl ${isLoading ? 'animate-spin' : ''}`}>refresh</span>
           </button>
         </div>
 
-        <div className="relative mb-4">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <span className="material-symbols-outlined text-on-surface-variant">search</span>
-          </div>
+        {/* Search */}
+        <div className="relative">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-xl pointer-events-none">search</span>
           <input
-            type="text"
-            placeholder="Search student ID or meal..."
-            className="w-full pl-10 pr-4 py-3 bg-surface-container-low border-none rounded-xl focus:ring-2 focus:ring-primary outline-none transition-all text-sm"
+            type="search"
+            placeholder="Search by student ID or meal..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full h-11 pl-10 pr-4 bg-surface-container-low rounded-xl text-sm text-on-surface placeholder:text-outline-variant focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
           />
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {['All Scans', 'Success', 'Failed'].map(filter => (
+        {/* Filter chips */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          {FILTERS.map(f => (
             <button
-              key={filter}
-              onClick={() => setActiveFilter(filter)}
-              className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                activeFilter === filter
-                  ? 'bg-primary-container text-on-primary-container'
+              key={f}
+              onClick={() => setActiveFilter(f)}
+              className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-semibold transition-colors flex-shrink-0 ${
+                activeFilter === f
+                  ? 'bg-primary text-on-primary shadow-sm'
                   : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
               }`}
             >
-              {filter}
+              {f}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      {/* ── Feed ── */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
         {error && (
-          <div className="p-3 bg-error-container text-on-error-container rounded-xl text-sm font-medium mb-4">
-            {error}
+          <div className="flex items-center gap-2 p-3 bg-error-container text-on-error-container rounded-2xl text-sm">
+            <span className="material-symbols-outlined text-base">error</span>{error}
           </div>
         )}
 
         {isLoading && (
-          <div className="flex justify-center py-12">
-            <span className="material-symbols-outlined animate-spin text-primary text-4xl">refresh</span>
+          <div className="flex justify-center py-16">
+            <span className="material-symbols-outlined animate-spin text-primary" style={{ fontSize: 40 }}>refresh</span>
           </div>
         )}
 
-        {!isLoading && filteredData.length === 0 && !error && (
-          <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant opacity-70">
-            <span className="material-symbols-outlined text-5xl mb-2">history</span>
-            <p>No history found</p>
+        {!isLoading && !error && filteredData.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16 text-on-surface-variant/60">
+            <span className="material-symbols-outlined mb-2" style={{ fontSize: 48 }}>manage_search</span>
+            <p className="text-sm font-medium">No records found</p>
           </div>
         )}
 
-        <div className="flex flex-col gap-3">
-          {filteredData.map((item, index) => (
+        {filteredData.map((item, idx) => {
+          const isSuccess = item.status === 'success'
+          return (
             <div
-              key={item._id || index}
-              className="bg-surface-container-lowest p-4 rounded-2xl shadow-sm border border-surface-variant flex gap-4 items-center"
+              key={item._id || idx}
+              className="bg-surface-container-lowest rounded-2xl border border-surface-variant shadow-sm p-4 flex gap-3 items-start"
             >
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
-                item.status === 'success' ? 'bg-green-100 text-green-700' : 'bg-error-container text-on-error-container'
+              {/* Status icon */}
+              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${
+                isSuccess ? 'bg-green-100 text-green-700' : 'bg-error-container text-on-error-container'
               }`}>
-                <span className="material-symbols-outlined">
-                  {item.status === 'success' ? 'check_circle' : 'error'}
+                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  {isSuccess ? 'check_circle' : 'cancel'}
                 </span>
               </div>
+
+              {/* Info */}
               <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start mb-1">
-                  <h4 className="font-bold text-on-surface truncate pr-2 uppercase text-sm">
-                    {item.status} &bull; {item.mealType || 'Meal'}
-                  </h4>
-                  <span className="text-xs text-on-surface-variant whitespace-nowrap">
-                    {formatTime(item.createdAt)}
+                <div className="flex justify-between items-start gap-2 mb-0.5">
+                  <span className={`text-sm font-bold uppercase ${isSuccess ? 'text-green-700' : 'text-error'}`}>
+                    {item.status} &bull; {item.mealType || '—'}
                   </span>
+                  <span className="text-xs text-on-surface-variant whitespace-nowrap flex-shrink-0">{formatDateTime(item.createdAt)}</span>
                 </div>
-                <p className="text-sm font-medium text-primary truncate">ID: {item.studentId}</p>
+                <p className="text-sm font-medium text-primary font-mono truncate">
+                  {item.studentId}
+                </p>
                 {item.reason && (
-                  <p className="text-xs text-on-surface-variant mt-1 truncate">{item.reason}</p>
+                  <p className="text-xs text-on-surface-variant mt-0.5 truncate">{item.reason}</p>
                 )}
               </div>
             </div>
-          ))}
-        </div>
+          )
+        })}
+
+        {/* Bottom padding so last item isn't hidden */}
+        <div className="h-2" />
       </div>
     </div>
   )

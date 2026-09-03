@@ -7,11 +7,22 @@ export default function Layout() {
   const isScanner = pathname === '/scanner'
 
   return (
-    <div className="flex flex-col h-dvh overflow-hidden">
+    // h-dvh = full viewport height. flex-col stacks: TopBar | main | BottomNav
+    <div className="flex flex-col bg-surface" style={{ height: '100dvh', overflow: 'hidden' }}>
+      {/* Hide top bar on scanner — camera needs all space */}
       {!isScanner && <TopAppBar />}
-      <main className={`flex-1 overflow-y-auto ${isScanner ? 'overflow-hidden' : 'pb-16'}`}>
+
+      {/* Main content area */}
+      <main
+        className={`flex-1 min-h-0 ${
+          isScanner
+            ? 'overflow-hidden'   // scanner needs exact pixel control
+            : 'overflow-y-auto'   // other pages scroll normally
+        }`}
+      >
         <Outlet />
       </main>
+
       <BottomNavBar />
     </div>
   )

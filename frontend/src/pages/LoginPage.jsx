@@ -12,94 +12,110 @@ export default function LoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault()
+    if (!email.trim() || !password.trim()) return
     setError('')
     setIsLoading(true)
-
     try {
-      const data = await login(email, password)
+      const data = await login(email.trim(), password)
       localStorage.setItem('token', data.token)
       localStorage.setItem('userName', data.name)
       navigate('/dashboard', { replace: true })
     } catch (err) {
-      setError(err.message || 'Login failed')
+      setError(err.message === 'Failed to fetch' ? 'Server unreachable. Check your connection.' : (err.message || 'Login failed'))
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-surface px-6 py-12">
-      <div className="flex flex-col items-center mt-12 mb-10">
-        <img src="/logo.png" alt="Logo" className="w-20 h-20 mb-4" />
-        <h1 className="font-display text-2xl font-bold text-on-surface text-center">
-          SHAURYA<br />
-          <span className="text-primary text-xl">FOOD COUNTER</span>
-        </h1>
+    <div className="min-h-screen bg-surface flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden">
+      {/* Background aura */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full opacity-10 blur-3xl"
+          style={{ background: 'radial-gradient(circle, #f58529 0%, #d081ff 100%)' }} />
       </div>
 
-      <form onSubmit={handleLogin} className="flex flex-col gap-5 max-w-md mx-auto w-full">
+      <div className="w-full max-w-sm relative z-10">
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-20 h-20 rounded-full bg-white shadow-lg flex items-center justify-center mb-4"
+            style={{ boxShadow: '0 0 24px rgba(245,133,41,0.2)' }}>
+            <img src="/logo.png" alt="Shaurya Logo" className="w-14 h-14 object-contain" />
+          </div>
+          <h1 className="font-display text-2xl font-bold text-on-surface text-center tracking-tight">SHAURYA FOOD COUNTER</h1>
+          <p className="text-on-surface-variant text-sm mt-1">Volunteer Login</p>
+        </div>
+
+        {/* Error */}
         {error && (
-          <div className="p-3 bg-error-container text-on-error-container rounded-xl text-sm font-medium flex items-center gap-2">
-            <span className="material-symbols-outlined">error</span>
-            {error}
+          <div className="flex items-start gap-2 p-3 mb-4 bg-error-container text-on-error-container rounded-2xl text-sm">
+            <span className="material-symbols-outlined text-base flex-shrink-0 mt-0.5">error</span>
+            <span>{error}</span>
           </div>
         )}
 
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <span className="material-symbols-outlined text-on-surface-variant">person</span>
+        {/* Form */}
+        <form onSubmit={handleLogin} className="flex flex-col gap-4" noValidate>
+          {/* Email */}
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">person</span>
+            <input
+              type="email"
+              autoComplete="email"
+              placeholder="Email address"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              className="w-full h-14 pl-12 pr-4 bg-surface-container-low border border-outline-variant rounded-2xl text-on-surface placeholder:text-outline-variant focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+            />
           </div>
-          <input
-            type="text"
-            placeholder="Email or Username"
-            className="w-full pl-12 pr-4 py-4 bg-surface-container-low border border-outline-variant rounded-2xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-on-surface"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
 
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <span className="material-symbols-outlined text-on-surface-variant">lock</span>
+          {/* Password */}
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">lock</span>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              className="w-full h-14 pl-12 pr-12 bg-surface-container-low border border-outline-variant rounded-2xl text-on-surface placeholder:text-outline-variant focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+            />
+            <button
+              type="button"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              onClick={() => setShowPassword(v => !v)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface transition-colors"
+            >
+              <span className="material-symbols-outlined">{showPassword ? 'visibility_off' : 'visibility'}</span>
+            </button>
           </div>
-          <input
-            type={showPassword ? "text" : "password"}
-            placeholder="Password"
-            className="w-full pl-12 pr-12 py-4 bg-surface-container-low border border-outline-variant rounded-2xl focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-on-surface"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+
+          {/* Forgot */}
+          <div className="flex justify-end -mt-1">
+            <button type="button" className="text-sm text-primary hover:underline">Forgot password?</button>
+          </div>
+
+          {/* Submit */}
           <button
-            type="button"
-            className="absolute inset-y-0 right-0 pr-4 flex items-center text-on-surface-variant hover:text-on-surface"
-            onClick={() => setShowPassword(!showPassword)}
+            type="submit"
+            disabled={isLoading}
+            className="w-full h-14 rounded-full font-bold text-on-primary text-base flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ background: isLoading ? '#ccc' : 'linear-gradient(135deg, #f58529 0%, #8639b4 100%)', boxShadow: '0 8px 24px rgba(245,133,41,0.3)' }}
           >
-            <span className="material-symbols-outlined">
-              {showPassword ? 'visibility_off' : 'visibility'}
-            </span>
+            {isLoading
+              ? <><span className="material-symbols-outlined animate-spin">refresh</span> Logging in...</>
+              : 'Login'
+            }
           </button>
-        </div>
+        </form>
 
-        <div className="flex justify-end">
-          <a href="#" className="text-sm font-medium text-primary hover:underline">
-            Forgot password?
-          </a>
-        </div>
-
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="mt-4 w-full py-4 bg-gradient-to-r from-primary to-tertiary text-on-primary rounded-full font-bold text-lg shadow-md hover:shadow-lg transform active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-        >
-          {isLoading ? (
-            <span className="material-symbols-outlined animate-spin">sync</span>
-          ) : (
-            'Login'
-          )}
-        </button>
-      </form>
+        {/* Help */}
+        <p className="text-center text-xs text-on-surface-variant/60 mt-8">
+          Need help? Contact the event admin.
+        </p>
+      </div>
     </div>
   )
 }
