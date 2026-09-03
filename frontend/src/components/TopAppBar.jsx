@@ -1,6 +1,6 @@
 export default function TopAppBar() {
   return (
-    <header className="flex-shrink-0 z-50 flex items-center justify-between px-4 h-14 bg-surface border-b border-surface-variant">
+    <header className="flex-shrink-0 z-50 flex items-center justify-between px-4 h-14 bg-surface border-b border-surface-variant relative">
       {/* Logo */}
       <img src="/logo.png" alt="Shaurya Logo" className="h-8 w-8 object-contain" />
 

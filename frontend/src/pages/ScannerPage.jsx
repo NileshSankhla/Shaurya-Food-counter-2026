@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { verifyScan } from '../api/client'
 
@@ -6,81 +6,152 @@ const MEALS = ['Breakfast', 'Lunch', 'Dinner']
 
 export default function ScannerPage() {
   const [mealType, setMealType] = useState('Breakfast')
-  const [modalState, setModalState] = useState(null) // null | 'verifying' | 'success' | 'failed' | 'network_error'
+  const [modalState, setModalState] = useState(null)
   const [scannedId, setScannedId] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const [cameraError, setCameraError] = useState('')
 
-  const qrRef = useRef(null)         // Html5Qrcode instance
-  const isProcessing = useRef(false) // prevents double-scan
-  const mealRef = useRef(mealType)   // always-fresh meal for callback closure
+  const qrRef = useRef(null)
+  const isProcessing = useRef(false)
+  const isStarting = useRef(false)   // guard against double-start
+  const mealRef = useRef(mealType)
+  const mountedRef = useRef(false)   // skip StrictMode extra cycle
 
-  // Keep mealRef synced when meal changes
   useEffect(() => { mealRef.current = mealType }, [mealType])
 
-  const stopScanner = useCallback(async () => {
-    if (qrRef.current?.isScanning) {
-      try { await qrRef.current.stop() } catch (_) { /* ignore */ }
-    }
-  }, [])
-
-  const startScanner = useCallback(async () => {
-    // Create instance once
-    if (!qrRef.current) {
-      qrRef.current = new Html5Qrcode('qr-reader', { verbose: false })
-    }
-    // Don't start if already scanning
-    if (qrRef.current.isScanning) return
-
-    const config = { fps: 10, qrbox: { width: 220, height: 220 }, aspectRatio: 1.0 }
-
-    const onSuccess = async (decodedText) => {
-      if (isProcessing.current) return
-      isProcessing.current = true
-
-      await stopScanner()
-      setScannedId(decodedText)
-      setModalState('verifying')
-
-      try {
-        const data = await verifyScan(decodedText, mealRef.current)
-        // Backend returns scan doc: { status: 'success'|'failed', reason: '...' }
-        if (data.status === 'success') {
-          setModalState('success')
-        } else {
-          setErrorMessage(data.reason || 'Scan not valid')
-          setModalState('failed')
+  // ── Stop the scanner safely ──
+  const stopScanner = async () => {
+    try {
+      if (qrRef.current) {
+        const state = qrRef.current.getState?.()
+        // State 2 = SCANNING, State 3 = PAUSED
+        if (state === 2 || state === 3 || qrRef.current.isScanning) {
+          await qrRef.current.stop()
         }
-      } catch (err) {
-        const isNet = !navigator.onLine || err.message === 'Failed to fetch'
-        setErrorMessage(isNet ? 'No internet connection' : (err.message || 'Server error'))
-        setModalState(isNet ? 'network_error' : 'failed')
       }
+    } catch {
+      // Ignore — scanner may already be stopped
     }
+  }
+
+  // ── Start the scanner ──
+  const startScanner = async () => {
+    // Guards
+    if (isStarting.current) return
+    if (qrRef.current?.isScanning) return
+
+    const el = document.getElementById('qr-reader')
+    if (!el || el.offsetHeight < 10) return  // element not laid out yet
+
+    isStarting.current = true
+    setCameraError('')
 
     try {
-      await qrRef.current.start({ facingMode: 'environment' }, config, onSuccess, () => {})
-    } catch {
-      // Fallback: try default camera if rear not available
+      // Create fresh instance each time (avoids stale DOM references)
+      if (qrRef.current) {
+        await stopScanner()
+        try { qrRef.current.clear() } catch { /* ok */ }
+      }
+      qrRef.current = new Html5Qrcode('qr-reader', { verbose: false })
+
+      const config = {
+        fps: 10,
+        qrbox: { width: 220, height: 220 },
+        aspectRatio: 1.0,
+        disableFlip: false,
+      }
+
+      const onSuccess = async (decodedText) => {
+        if (isProcessing.current) return
+        isProcessing.current = true
+
+        await stopScanner()
+        setScannedId(decodedText)
+        setModalState('verifying')
+
+        try {
+          const data = await verifyScan(decodedText, mealRef.current)
+          if (data.status === 'success') {
+            setModalState('success')
+          } else {
+            setErrorMessage(data.reason || 'Scan not valid')
+            setModalState('failed')
+          }
+        } catch (err) {
+          const isNet = !navigator.onLine || err.message === 'Failed to fetch'
+          setErrorMessage(isNet ? 'No internet connection' : (err.message || 'Server error'))
+          setModalState(isNet ? 'network_error' : 'failed')
+        }
+      }
+
+      // Try rear camera first
       try {
-        await qrRef.current.start({ facingMode: 'user' }, config, onSuccess, () => {})
-      } catch (err) {
-        setErrorMessage('Camera access denied. Please allow camera permission and reload.')
-        setModalState('failed')
+        await qrRef.current.start(
+          { facingMode: 'environment' }, config, onSuccess, () => {}
+        )
+      } catch {
+        // Fallback — try any available camera by ID
+        try {
+          const devices = await Html5Qrcode.getCameras()
+          if (devices && devices.length > 0) {
+            await qrRef.current.start(
+              devices[0].id, config, onSuccess, () => {}
+            )
+          } else {
+            setCameraError('No camera found on this device.')
+          }
+        } catch {
+          setCameraError('Camera permission denied. Please allow camera access in your browser settings and reload the page.')
+        }
+      }
+    } catch (err) {
+      setCameraError('Could not start camera: ' + (err.message || 'Unknown error'))
+    } finally {
+      isStarting.current = false
+    }
+  }
+
+  // ── Main effect: start on mount, restart when modal closes ──
+  useEffect(() => {
+    // React StrictMode in dev runs effects twice.
+    // Skip the first mount+unmount cycle.
+    if (!mountedRef.current) {
+      mountedRef.current = true
+      // Small delay to let the DOM element get its layout dimensions
+      const t = setTimeout(() => {
+        if (modalState === null) {
+          isProcessing.current = false
+          startScanner()
+        }
+      }, 300)
+      return () => {
+        clearTimeout(t)
+        stopScanner()
       }
     }
-  }, [stopScanner])
 
-  // Start scanner on mount / when modal closes
-  useEffect(() => {
+    // Normal re-runs (modal closed)
     if (modalState === null) {
       isProcessing.current = false
-      startScanner()
+      const t = setTimeout(startScanner, 200)
+      return () => {
+        clearTimeout(t)
+        stopScanner()
+      }
     }
-    // Cleanup on unmount or when modal opens
+
+    return () => { stopScanner() }
+  }, [modalState])
+
+  // ── Cleanup on unmount ──
+  useEffect(() => {
     return () => {
-      stopScanner()
+      stopScanner().then(() => {
+        try { qrRef.current?.clear() } catch { /* ok */ }
+        qrRef.current = null
+      })
     }
-  }, [modalState, startScanner, stopScanner])
+  }, [])
 
   const handleTryAgain = () => {
     setScannedId('')
@@ -110,44 +181,60 @@ export default function ScannerPage() {
         </div>
       </div>
 
-      {/* ── Camera feed – html5-qrcode renders <video> inside this div ── */}
-      {/* It MUST have an explicit pixel height, not just flex-1 / h-full */}
+      {/* ── Camera container ── */}
       <div
         id="qr-reader"
         className="w-full"
-        style={{ height: '100%', overflow: 'hidden' }}
+        style={{ height: '100%', overflow: 'hidden', position: 'relative' }}
       />
 
-      {/* ── Scan-frame overlay (pointer-events-none so it doesn't block camera) ── */}
-      <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-        {/* darken everything outside the frame */}
-        <div className="absolute inset-0 bg-black/50" style={{
-          WebkitMaskImage: 'radial-gradient(ellipse 230px 230px at center, transparent 100%, black 100%)',
-          maskImage: 'radial-gradient(ellipse 230px 230px at center, transparent 100%, black 100%)',
-        }} />
-        {/* frame box */}
-        <div className="relative w-[220px] h-[220px]">
-          <div className="corner-marker corner-tl" />
-          <div className="corner-marker corner-tr" />
-          <div className="corner-marker corner-bl" />
-          <div className="corner-marker corner-br" />
-          {modalState === null && <div className="scan-line" />}
+      {/* ── Camera error message ── */}
+      {cameraError && modalState === null && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 p-6">
+          <div className="bg-surface rounded-3xl p-6 max-w-xs text-center shadow-xl flex flex-col items-center gap-4">
+            <span className="material-symbols-outlined text-error" style={{ fontSize: 48, fontVariationSettings: "'FILL' 1" }}>videocam_off</span>
+            <p className="text-on-surface text-sm font-medium leading-relaxed">{cameraError}</p>
+            <button
+              onClick={() => { setCameraError(''); startScanner() }}
+              className="w-full py-3 bg-primary text-on-primary rounded-full font-bold text-sm active:scale-95 transition-all"
+            >
+              Retry Camera
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ── Scan frame overlay ── */}
+      {!cameraError && (
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
+          <div className="absolute inset-0 bg-black/40" style={{
+            WebkitMaskImage: 'radial-gradient(ellipse 130px 130px at center, transparent 100%, black 100%)',
+            maskImage: 'radial-gradient(ellipse 130px 130px at center, transparent 100%, black 100%)',
+          }} />
+          <div className="relative w-[220px] h-[220px]">
+            <div className="corner-marker corner-tl" />
+            <div className="corner-marker corner-tr" />
+            <div className="corner-marker corner-bl" />
+            <div className="corner-marker corner-br" />
+            {modalState === null && <div className="scan-line" />}
+          </div>
+        </div>
+      )}
 
       {/* ── Hint text ── */}
-      <div className="absolute bottom-8 left-0 right-0 text-center pointer-events-none z-10">
-        <p className="inline-block text-white text-sm bg-black/50 px-4 py-1.5 rounded-full backdrop-blur-sm">
-          Align student QR code in the frame
-        </p>
-      </div>
+      {!cameraError && modalState === null && (
+        <div className="absolute bottom-8 left-0 right-0 text-center pointer-events-none z-10">
+          <p className="inline-block text-white text-sm bg-black/50 px-4 py-1.5 rounded-full backdrop-blur-sm">
+            Align student QR code in the frame
+          </p>
+        </div>
+      )}
 
-      {/* ── Modal ── */}
+      {/* ── Result Modal ── */}
       {modalState !== null && (
         <div className="absolute inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm p-4 pb-8">
           <div className="bg-surface w-full max-w-sm rounded-[32px] p-6 shadow-2xl">
 
-            {/* Verifying */}
             {modalState === 'verifying' && (
               <div className="flex flex-col items-center py-8 gap-3">
                 <span className="material-symbols-outlined text-primary animate-spin" style={{ fontSize: 48 }}>refresh</span>
@@ -156,7 +243,6 @@ export default function ScannerPage() {
               </div>
             )}
 
-            {/* Success */}
             {modalState === 'success' && (
               <div className="flex flex-col items-center py-4 gap-3">
                 <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
@@ -174,7 +260,6 @@ export default function ScannerPage() {
               </div>
             )}
 
-            {/* Failed / Network Error */}
             {(modalState === 'failed' || modalState === 'network_error') && (
               <div className="flex flex-col items-center py-4 gap-3">
                 <div className="w-20 h-20 rounded-full bg-error-container flex items-center justify-center">
