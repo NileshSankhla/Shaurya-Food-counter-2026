@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. The Physical Inventory
+model QrCard {
+  id          Int      @id @default(autoincrement())
+  uid         String   @unique // e.g., "SHR-1001"
+  isAssigned  Boolean  @default(false)
+  
+  guest       Guest?   // A card belongs to one guest (optional until assigned)
+}
+
+// 2. The Students
+model Guest {
+  id          Int      @id @default(autoincrement())
+  name        String
+  college     String?
+  contactNo   String?
+  
+  // Link to the physical QR card
+  qrCardId    Int?     @unique
+  qrCard      QrCard?  @relation(fields: [qrCardId], references: [id])
+  
+  entries     FoodEntry[]
+}
+
+// 3. The Configuration (Days & Meals)
+model FoodSlot {
+  id          Int      @id @default(autoincrement())
+  title       String   // e.g., "Day 1 - Lunch"
+  startTime   DateTime
+  endTime     DateTime
+  
+  entries     FoodEntry[]
+}
+
+// 4. The Scan Log
+model FoodEntry {
+  id          Int      @id @default(autoincrement())
+  scannedAt   DateTime @default(now())
+  
+  guestId     Int
+  guest       Guest    @relation(fields: [guestId], references: [id])
+  
+  slotId      Int
+  slot        FoodSlot @relation(fields: [slotId], references: [id])
+
+  // THIS IS THE MAGIC LOCK: Prevents double-scans and race conditions!
+  @@unique([guestId, slotId])
+}
