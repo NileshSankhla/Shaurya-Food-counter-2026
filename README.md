@@ -1,6 +1,20 @@
 # Shaurya Food Counter 2026
 
+> **Legacy project notice:** This repository contains the previous version of the Shaurya food distribution and QR verification project.
+>
+> The latest version is now maintained in [`bhanupratap07-hack/shaurya-QR`](https://github.com/bhanupratap07-hack/shaurya-QR), under the name **Shaurya QR Ecosystem**.
+
 A full-stack mobile-first web application for managing food distribution at the **Shaurya Sports Meet 2026**. Volunteers use it to scan student QR codes and verify meal eligibility in real time.
+
+---
+
+## Project status
+
+- **Status:** Previous/legacy version
+- **Latest project:** [Shaurya QR Ecosystem](https://github.com/bhanupratap07-hack/shaurya-QR)
+- **Purpose of this repository:** Historical reference for the original implementation
+
+The current project has evolved into a larger monorepo with public registration, administrator operations, QR assignment, meal-slot controls, volunteer workflows, audit logs, and PostgreSQL-backed data management. Use the latest repository for new development and deployment.
 
 ---
 
